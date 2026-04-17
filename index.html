@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📅 주간 루틴</title>
+<style>
+:root {
+  --bg:#f4f4fb; --surf:#fff; --bd:#e2e2f0;
+  --tx:#14142c; --sub:#9494bb; --hdr:#ebebf8;
+}
+.dark {
+  --bg:#0d0d12; --surf:#18182a; --bd:#252538;
+  --tx:#dcdcf0; --sub:#52527a; --hdr:#111120;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,sans-serif;padding:14px 10px;min-height:100vh;transition:background .2s,color .2s;}
+#header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+#header h1{font-size:18px;font-weight:700;letter-spacing:-.5px;}
+#header p{font-size:11px;color:var(--sub);margin-top:2px;}
+#toggle-btn{background:var(--surf);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:7px 13px;cursor:pointer;font-size:13px;flex-shrink:0;}
+#grid-wrap{border-radius:12px;border:1px solid var(--bd);overflow:hidden;display:flex;overflow-x:auto;}
+#time-axis{width:46px;flex-shrink:0;background:var(--hdr);border-right:1px solid var(--bd);}
+.time-hdr{height:38px;border-bottom:1px solid var(--bd);}
+.time-cell{height:28px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;border-bottom:1px solid var(--bd);}
+.time-cell.minor{opacity:.45;}
+.time-label{font-size:10px;color:var(--sub);white-space:nowrap;}
+#days-wrap{display:flex;flex:1;}
+.day-col{flex:1;min-width:68px;border-left:1px solid var(--bd);}
+.day-hdr{height:38px;background:var(--hdr);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+.day-hdr.today{color:#6366f1;}
+.day-hdr.weekend{color:#ec4899;}
+.day-dot{display:inline-block;width:6px;height:6px;border-radius:3px;background:#6366f1;margin-left:4px;box-shadow:0 0 6px #6366f1;}
+.day-body{position:relative;}
+.gline{position:absolute;left:0;right:0;height:28px;pointer-events:none;border-bottom:1px solid var(--bd);}
+.gline.minor{opacity:.4;}
+.now-line{position:absolute;left:0;right:0;height:2px;background:#6366f1;z-index:10;pointer-events:none;box-shadow:0 0 8px #6366f1aa;}
+.now-dot{position:absolute;left:-3px;top:-3px;width:8px;height:8px;border-radius:4px;background:#6366f1;}
+.block{position:absolute;left:2px;right:2px;border-radius:6px;cursor:grab;z-index:5;user-select:none;overflow:hidden;display:flex;flex-direction:column;touch-action:none;transition:opacity .1s;}
+.block-name{font-size:11px;font-weight:700;color:#fff;padding:3px 6px 1px;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.block-time{font-size:10px;color:rgba(255,255,255,.72);padding:0 6px;white-space:nowrap;}
+.resize-handle{position:absolute;bottom:0;left:0;right:0;height:10px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;touch-action:none;}
+.resize-bar{width:18px;height:2px;border-radius:1px;background:rgba(255,255,255,.45);pointer-events:none;}
+.copy-badge{position:absolute;top:3px;right:4px;background:rgba(255,255,255,.95);border-radius:4px;font-size:10px;font-weight:800;padding:1px 5px;line-height:16px;pointer-events:none;z-index:2;}
+/* Modal */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:200;}
+#overlay.show{display:flex;}
+#modal{background:var(--surf);border-radius:18px;padding:24px;width:300px;border:1px solid var(--bd);box-shadow:0 24px 80px rgba(0,0,0,.4);}
+#modal h3{font-size:16px;font-weight:700;margin-bottom:4px;}
+#modal-sub{font-size:12px;color:var(--sub);margin-bottom:14px;min-height:0;}
+#modal-input{width:100%;padding:10px 12px;border-radius:9px;font-size:14px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);outline:none;margin-bottom:16px;}
+.clabel{font-size:11px;color:var(--sub);margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+#cpicker{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;}
+.cdot{width:26px;height:26px;border-radius:7px;cursor:pointer;transition:transform .12s,box-shadow .12s;}
+.cdot.sel{transform:scale(1.25);}
+#mbtns{display:flex;gap:8px;}
+.mbtn{padding:10px;border-radius:9px;cursor:pointer;font-size:13px;border:none;flex:1;}
+.mbtn-cancel{background:transparent;border:1px solid var(--bd)!important;color:var(--sub);}
+.mbtn-del{background:#ef444418;border:1px solid #ef444440!important;color:#ef4444;font-weight:600;}
+.mbtn-ok{color:#fff;font-weight:700;flex:2;}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>📅 주간 루틴</h1>
+    <p>빈 칸 클릭 → 추가 &nbsp;·&nbsp; 블록 클릭 → 편집 &nbsp;·&nbsp; 드래그 → 이동 &nbsp;·&nbsp; Alt+드래그 → 복사 &nbsp;·&nbsp; 하단 핸들 → 크기 조절</p>
+  </div>
+  <button id="toggle-btn">🌙</button>
+</div>
+
+<div id="grid-wrap">
+  <div id="time-axis"></div>
+  <div id="days-wrap"></div>
+</div>
+
+<div id="overlay">
+  <div id="modal">
+    <h3 id="modal-title"></h3>
+    <div id="modal-sub"></div>
+    <input id="modal-input" placeholder="루틴 이름...">
+    <div class="clabel">색상 선택</div>
+    <div id="cpicker"></div>
+    <div id="mbtns"></div>
+  </div>
+</div>
+
+<script>
+const SH = 28, DAYS = ['월','화','수','목','금','토','일'];
+const START = 5, TOTAL = (24 - START) * 2;
+const COLORS = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#14b8a6','#06b6d4','#3b82f6'];
+
+let blocks = JSON.parse(localStorage.getItem('routine') || '[]');
+let dark   = localStorage.getItem('routine-dark') === 'true';
+let altHeld = false, noClick = false;
+let uid = +localStorage.getItem('routine-uid') || Date.now();
+let selColor = COLORS[0], curModal = null;
+
+const toTime = s => { const m = START*60+s*30; return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; };
+const saveBlocks = () => { localStorage.setItem('routine', JSON.stringify(blocks)); localStorage.setItem('routine-uid', uid); };
+const body = di => document.getElementById(`db-${di}`);
+
+// ── Theme ────────────────────────────────────────────────
+function applyTheme() {
+  document.body.classList.toggle('dark', dark);
+  document.getElementById('toggle-btn').textContent = dark ? '☀️' : '🌙';
+  localStorage.setItem('routine-dark', dark);
+}
+document.getElementById('toggle-btn').onclick = () => { dark = !dark; applyTheme(); };
+
+// ── Alt tracking ─────────────────────────────────────────
+window.addEventListener('keydown', e => { altHeld = e.altKey; });
+window.addEventListener('keyup',   e => { altHeld = e.altKey; });
+
+// ── Build grid ───────────────────────────────────────────
+function buildGrid() {
+  const ta = document.getElementById('time-axis');
+  ta.innerHTML = '<div class="time-hdr"></div>';
+  for (let i = 0; i < TOTAL; i++) {
+    const c = document.createElement('div');
+    c.className = 'time-cell' + (i % 2 !== 0 ? ' minor' : '');
+    if (i % 2 === 0) { const l = document.createElement('span'); l.className = 'time-label'; l.textContent = toTime(i); c.appendChild(l); }
+    ta.appendChild(c);
+  }
+
+  const dw = document.getElementById('days-wrap');
+  dw.innerHTML = '';
+  const today = (new Date().getDay() + 6) % 7;
+  DAYS.forEach((d, di) => {
+    const col = document.createElement('div'); col.className = 'day-col';
+    const hdr = document.createElement('div'); hdr.className = 'day-hdr' + (di===today?' today':di>=5?' weekend':''); hdr.id = `dh-${di}`;
+    hdr.innerHTML = d + (di===today ? '<span class="day-dot"></span>' : '');
+    col.appendChild(hdr);
+    const b = document.createElement('div'); b.className = 'day-body'; b.id = `db-${di}`; b.style.height = TOTAL*SH+'px';
+    for (let i = 0; i < TOTAL; i++) {
+      const l = document.createElement('div'); l.className = 'gline' + (i%2!==0?' minor':''); l.style.top = i*SH+'px'; b.appendChild(l);
+    }
+    b.addEventListener('click', e => {
+      if (noClick) return;
+      const r = b.getBoundingClientRect();
+      openCreate(di, Math.floor((e.clientY - r.top) / SH));
+    });
+    col.appendChild(b); dw.appendChild(col);
+  });
+}
+
+// ── Render all blocks ────────────────────────────────────
+function renderAll() {
+  document.querySelectorAll('.block,.now-line').forEach(e => e.remove());
+  blocks.forEach(bl => { const b = body(bl.day); if (b) b.appendChild(mkEl(bl)); });
+  renderNow();
+}
+
+function mkEl(bl) {
+  const el = document.createElement('div');
+  el.className = 'block'; el.dataset.id = bl.id;
+  el.style.cssText = `top:${bl.startSlot*SH+1}px;height:${bl.duration*SH-2}px;background:${bl.color}e0;border:1px solid ${bl.color};box-shadow:0 2px 10px ${bl.color}50;`;
+  const nm = document.createElement('div'); nm.className = 'block-name'; nm.textContent = bl.name; el.appendChild(nm);
+  const tm = document.createElement('div'); tm.className = 'block-time'; el.appendChild(tm); updateTime(el, bl);
+  const rz = document.createElement('div'); rz.className = 'resize-handle'; rz.innerHTML = '<div class="resize-bar"></div>'; el.appendChild(rz);
+  el.addEventListener('pointerdown', e => { if (e.button !== 0) return; startDrag(e, bl, el); });
+  rz.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button !== 0) return; startResize(e, bl, el); });
+  return el;
+}
+
+function updateTime(el, bl) {
+  const tm = el.querySelector('.block-time');
+  if (!tm) return;
+  if (bl.duration >= 3) { tm.textContent = `${toTime(bl.startSlot)}–${toTime(bl.startSlot + bl.duration)}`; tm.style.display = ''; }
+  else tm.style.display = 'none';
+}
+
+function renderNow() {
+  const n = new Date(), d = (n.getDay()+6)%7;
+  const s = (n.getHours()*60 + n.getMinutes() - START*60) / 30;
+  if (s < 0 || s > TOTAL) return;
+  const b = body(d); if (!b) return;
+  const l = document.createElement('div'); l.className = 'now-line'; l.style.top = s*SH+'px';
+  l.innerHTML = '<div class="now-dot"></div>'; b.appendChild(l);
+}
+setInterval(() => { document.querySelectorAll('.now-line').forEach(e => e.remove()); renderNow(); }, 30000);
+
+// ── Drag ────────────────────────────────────────────────
+function startDrag(e, bl, el) {
+  e.preventDefault(); e.stopPropagation();
+  el.setPointerCapture(e.pointerId);
+  const off = Math.floor((e.clientY - el.getBoundingClientRect().top) / SH);
+  let moved = false, curDay = bl.day, curSlot = bl.startSlot;
+  if (e.altKey) { showBadge(el, bl.color); el.style.opacity = '.6'; }
+
+  const onMove = ev => {
+    if (!moved && (Math.abs(ev.clientX-e.clientX)>5 || Math.abs(ev.clientY-e.clientY)>5)) moved = true;
+    if (!moved) return;
+    noClick = true;
+    if (altHeld) { showBadge(el, bl.color); el.style.opacity = '.6'; el.style.cursor = 'copy'; }
+    else { hideBadge(el); el.style.opacity = '1'; el.style.cursor = 'grabbing'; }
+
+    let nd = curDay;
+    for (let i = 0; i < 7; i++) { const b = body(i); if (!b) continue; const r = b.getBoundingClientRect(); if (ev.clientX >= r.left && ev.clientX <= r.right) { nd = i; break; } }
+    const cb = body(nd); if (!cb) return;
+    const cr = cb.getBoundingClientRect();
+    let ns = Math.round((ev.clientY - cr.top) / SH) - off;
+    ns = Math.max(0, Math.min(ns, TOTAL - bl.duration));
+    if (nd !== curDay) { cb.appendChild(el); }
+    el.style.top = ns*SH+1+'px';
+    curDay = nd; curSlot = ns;
+  };
+
+  const onUp = () => {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    el.style.opacity = '1'; el.style.cursor = 'grab'; hideBadge(el);
+
+    if (!moved) { openEdit(bl); return; }
+
+    if (altHeld) {
+      // restore original position visually
+      el.style.top = bl.startSlot*SH+1+'px';
+      const ob = body(bl.day); if (ob && el.parentElement !== ob) ob.appendChild(el);
+      // add copy
+      const copy = { id: uid++, day: curDay, startSlot: curSlot, duration: bl.duration, name: bl.name, color: bl.color };
+      blocks.push(copy);
+      const cb2 = body(curDay); if (cb2) cb2.appendChild(mkEl(copy));
+    } else {
+      bl.day = curDay; bl.startSlot = curSlot;
+    }
+    saveBlocks();
+    setTimeout(() => { noClick = false; }, 80);
+  };
+
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+}
+
+function showBadge(el, color) {
+  if (el.querySelector('.copy-badge')) return;
+  const b = document.createElement('div'); b.className = 'copy-badge'; b.textContent = '＋복사'; b.style.color = color; el.appendChild(b);
+}
+function hideBadge(el) { el.querySelector('.copy-badge')?.remove(); }
+
+// ── Resize ───────────────────────────────────────────────
+function startResize(e, bl, el) {
+  e.preventDefault(); e.stopPropagation();
+  el.setPointerCapture(e.pointerId);
+  const sy = e.clientY, origDur = bl.duration;
+
+  const onMove = ev => {
+    noClick = true;
+    const d = Math.round((ev.clientY - sy) / SH);
+    bl.duration = Math.max(1, Math.min(origDur + d, TOTAL - bl.startSlot));
+    el.style.height = bl.duration*SH-2+'px';
+    updateTime(el, bl);
+  };
+  const onUp = () => {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    saveBlocks();
+    setTimeout(() => { noClick = false; }, 80);
+  };
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+}
+
+// ── Modal ────────────────────────────────────────────────
+function openCreate(day, slot) {
+  curModal = { type:'create', day, slot };
+  selColor = COLORS[0];
+  showModal('✨ 루틴 추가', `${DAYS[day]}요일 ${toTime(slot)}`, '');
+}
+function openEdit(bl) {
+  curModal = { type:'edit', bl };
+  selColor = bl.color;
+  showModal('✏️ 루틴 편집', '', bl.name);
+}
+
+function showModal(title, sub, val) {
+  document.getElementById('modal-title').textContent = title;
+  const subEl = document.getElementById('modal-sub');
+  subEl.textContent = sub; subEl.style.display = sub ? 'block' : 'none';
+  const inp = document.getElementById('modal-input'); inp.value = val;
+
+  // Color picker
+  const cp = document.getElementById('cpicker'); cp.innerHTML = '';
+  COLORS.forEach(c => {
+    const d = document.createElement('div'); d.className = 'cdot' + (c===selColor?' sel':''); d.style.background = c;
+    if (c===selColor) d.style.boxShadow = `0 0 0 2px var(--surf),0 0 0 4px ${c}`;
+    d.onclick = () => {
+      selColor = c;
+      cp.querySelectorAll('.cdot').forEach(x => { x.classList.remove('sel'); x.style.boxShadow=''; x.style.transform=''; });
+      d.classList.add('sel'); d.style.boxShadow=`0 0 0 2px var(--surf),0 0 0 4px ${c}`; d.style.transform='scale(1.25)';
+      const ok = document.getElementById('mok'); if (ok) { ok.style.background=c; ok.style.boxShadow=`0 4px 14px ${c}60`; }
+    };
+    cp.appendChild(d);
+  });
+
+  // Buttons
+  const mb = document.getElementById('mbtns'); mb.innerHTML = '';
+  if (curModal.type === 'edit') {
+    const del = document.createElement('button'); del.className='mbtn mbtn-del'; del.textContent='삭제';
+    del.onclick = () => { blocks = blocks.filter(b => b.id !== curModal.bl.id); saveBlocks(); renderAll(); closeModal(); };
+    mb.appendChild(del);
+  }
+  const cancel = document.createElement('button'); cancel.className='mbtn mbtn-cancel'; cancel.textContent='취소'; cancel.onclick=closeModal; mb.appendChild(cancel);
+  const ok = document.createElement('button'); ok.className='mbtn mbtn-ok'; ok.id='mok';
+  ok.textContent = curModal.type==='create' ? '추가하기' : '저장하기';
+  ok.style.cssText = `background:${selColor};box-shadow:0 4px 14px ${selColor}60;`;
+  ok.onclick = () => {
+    const name = document.getElementById('modal-input').value.trim(); if (!name) return;
+    if (curModal.type === 'create') {
+      const nb = { id:uid++, day:curModal.day, startSlot:curModal.slot, duration:2, name, color:selColor };
+      blocks.push(nb); saveBlocks();
+      const b = body(nb.day); if (b) b.appendChild(mkEl(nb));
+    } else {
+      curModal.bl.name = name; curModal.bl.color = selColor; saveBlocks();
+      const old = document.querySelector(`.block[data-id="${curModal.bl.id}"]`);
+      if (old) { const p = old.parentElement; old.remove(); p.appendChild(mkEl(curModal.bl)); }
+    }
+    closeModal();
+  };
+  mb.appendChild(ok);
+
+  document.getElementById('overlay').classList.add('show');
+  setTimeout(() => inp.focus(), 50);
+}
+
+function closeModal() { document.getElementById('overlay').classList.remove('show'); curModal = null; }
+document.getElementById('overlay').addEventListener('click', e => { if (e.target===document.getElementById('overlay')) closeModal(); });
+document.getElementById('modal-input').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('mok')?.click(); });
+
+// ── Init ─────────────────────────────────────────────────
+applyTheme();
+buildGrid();
+renderAll();
+</script>
+</body>
+</html>
