@@ -213,7 +213,7 @@ function startDrag(e, bl, el) {
     el.removeEventListener('pointercancel', onUp);
     el.style.opacity = '1'; el.style.cursor = 'grab'; hideBadge(el);
 
-    if (!moved) { openEdit(bl); return; }
+    if (!moved) { noClick = true; openEdit(bl); setTimeout(() => { noClick = false; }, 100); return; }
 
     if (altHeld) {
       // restore original position visually
